@@ -206,8 +206,8 @@ impl Backtester {
                     trade.benefits = lots * trade.tp - lots * trade.entry_price;
                     trade.loss = lots * trade.entry_price - lots * trade.sl;
 
-                    let leverage = (((trade.money + trade.benefits) / trade.money) - 1.) / ((trade.tp / trade.entry_price) - 1.);
-                    println!("leverage == {} for trade {:#?}", leverage, trade);
+                    //let leverage = (((trade.money + trade.benefits) / trade.money) - 1.) / ((trade.tp / trade.entry_price) - 1.);
+                    //println!("leverage == {} for trade {:#?}", leverage, trade);
                     if trade.entry_price <= kline.high && trade.entry_price >= kline.low && trade.status == Status::NotTriggered{
                         trade.status = Status::Running;
                         //((Cap/Cav)-1)/((Pv/Pa)-1)

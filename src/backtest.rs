@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::Write;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{Sender, channel};
 use std::time::Instant;
 use std::{thread, io, fmt};
 
@@ -9,7 +10,7 @@ use serde::{Serialize, Deserialize};
 use crate::patterns::*;
 use crate::strategies::*;
 
-pub type StrategyFunc = fn(Vec<MathKLine>, StrategyParams, Arc<Vec<Arc<dyn PatternParams>>>) -> Vec<Trade>;
+pub type StrategyFunc = fn(&Vec<MathKLine>, &Sender<f32>, StrategyParams, Arc<Vec<Arc<dyn PatternParams>>>) -> Vec<Trade>;
 pub type Strategy = (StrategyFunc, StrategyParams, Arc<Vec<Arc<dyn PatternParams>>>);
 
 const TAXES_SPOT: f64 = 0.000;
@@ -90,90 +91,65 @@ pub struct StrategyResult{
 pub struct Backtester {
     klines_data: Vec<MathKLine>,
     trades: Vec<Trade>,
-    num_workers: usize,
     strategies: Vec<Strategy>,
     results: Vec<StrategyResult>,
-    current_strategy_money_evolution: Vec<f64>
+    current_strategy_money_evolution: Vec<f64>,
+    progression_tracker: Sender<(f32, usize)>,
+    id: usize,
 }
 
 impl Backtester {
-    pub fn new(klines_data: Vec<KlineSummary>, num_workers: usize) -> Self {
+    pub fn new(klines_data: Vec<KlineSummary>, progression_tracker: Sender<(f32, usize)>, id: usize) -> Self {
         Backtester {
             klines_data: Self::to_all_math_kline(klines_data),
             trades: Vec::new(),
-            num_workers,
             strategies: Vec::new(),
             results: Vec::new(),
-            current_strategy_money_evolution: Vec::new()
+            current_strategy_money_evolution: Vec::new(),
+            progression_tracker,
+            id
         }
     }
 
     pub fn start(&mut self) -> &mut Self{
-        let mut i = 0;
         let size = self.strategies.len();
         let start = Instant::now();
+        let (tx, rx) = channel::<f32>();
 
-        for mut strategy in self.strategies.clone() {
-            self.create_trades_from_strategy(strategy.clone());
-            self.resolve_trades(&mut strategy);
+        let progression_tracker_clone = self.progression_tracker.clone();
+        let id = self.id;
+        let total = self.strategies.len();
+        let current: Arc<Mutex<f32>> = Arc::new(Mutex::new(1.));
+        let current_clone: Arc<Mutex<f32>> = current.clone();
+        thread::spawn(move || loop {
+            while let Ok(progression) = rx.recv() {
+                let current_num = *current.lock().unwrap();
+                let total_sent = ((progression + (current_num*100.))/(total * 100) as f32) * 100.;
+                //println!("progression == {} ---- total sent == {} ---- current == {}", progression, total_sent, current_num);
+                progression_tracker_clone.send((total_sent, id));
+            }
+        });
+
+        for (i, strategy) in self.strategies.clone().iter_mut().enumerate() {
+            self.create_trades_from_strategy(strategy.clone(), &tx);
+            self.resolve_trades(strategy, &tx);
             self.generate_results(strategy);
             self.clean_trades();
-
-            i += 1;
-            let duration = start.elapsed();
-            print!("\rTrades resolved : {}% -- Elapsed time : {}s -- Estimated total time : {}s", 100*i/size, duration.as_secs(), ((duration.as_secs_f64()/i as f64)*size as f64) as u64);
-            io::stdout().flush().unwrap();
+            
+            let new_current = *current_clone.lock().unwrap() + 1.;
+            *current_clone.lock().unwrap() = new_current;
         }
+        self.progression_tracker.send((100., self.id));
         self
     }
 
-    fn create_trades(&mut self) {
-        println!("Trade creation process starts. {} klines data to process", self.klines_data.len());
-        let mut i = 0;
-        let size = self.strategies.len();
-
-        
-        let start = Instant::now();
-        
-        for strategy in self.strategies.clone() {
-            self.create_trades_from_strategy(strategy);
-            i+=1;
-            let duration = start.elapsed();
-            print!("\rAvancement : {}% -- Elapsed time : {}s -- Estimated total time : {}s", 100*i/size, duration.as_secs(), ((duration.as_secs_f64()/i as f64)*size as f64) as u64);
-            io::stdout().flush().unwrap();
-        }
-        println!();
-        println!("created {} trades", self.trades.len());
+    fn create_trades_from_strategy(&mut self, strategy: Strategy, progression_tracker: &Sender<f32>) {
+        self.trades = strategy.0(&self.klines_data, &progression_tracker, strategy.1, strategy.2);
     }
 
-    fn create_trades_from_strategy(&mut self, strategy: Strategy) {
-        let chunk_size = (self.klines_data.len() + self.num_workers - 1) / self.num_workers;
-        let results = (0..self.num_workers).map(|i| {
-            let start = i * chunk_size;
-            let num_elements = if i < self.num_workers - 1 {
-                chunk_size
-            } else {
-                self.klines_data.len() - i * chunk_size
-            };
-
-            let strategy_params_clone = strategy.1;
-            let patterns_params_clone = strategy.2.clone();
-
-            let chunk = Vec::from(&self.klines_data[start..][..num_elements]);
-
-            thread::spawn(move || {
-                strategy.0(chunk, strategy_params_clone, patterns_params_clone)
-            })
-        }).collect::<Vec<_>>();
-
-        for handle in results {
-            let mut partial_results = handle.join().unwrap();
-            self.trades.append(&mut partial_results);
-        }
-    }
-
-    fn resolve_trades(&mut self, strategy: &mut Strategy) {
-        for kline in &self.klines_data {
+    fn resolve_trades(&mut self, strategy: &mut Strategy, progression_tracker: &Sender<f32>) {
+        let mut last_sent = 0;
+        for (i, kline) in self.klines_data.iter().enumerate() {
             self.trades.iter_mut().for_each(|trade| {
                 if kline.close_time == trade.open_time && trade.status == Status::NotOpened {
                     trade.status = Status::Running;
@@ -230,11 +206,17 @@ impl Backtester {
                         return;
                     }
                 }
+
             });
+            if last_sent + 1000 < i {
+                let to_send = (i as f32/self.klines_data.len() as f32*50.) + 50.;
+                progression_tracker.send(to_send);
+                last_sent = i;
+            }
         }
     }
 
-    fn generate_results(&mut self, strategy: Strategy) {
+    fn generate_results(&mut self, strategy: &Strategy) {
         let name = strategy.1.name;
         let mut patterns_params = HashMap::new();
 

@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::mpsc::Sender;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -24,13 +25,14 @@ pub struct StrategyParams {
 }
 
 pub fn create_wpattern_trades(
-    chunk: Vec<MathKLine>,
+    chunk: &Vec<MathKLine>,
+    progression_tracker: &Sender<f32>,
     strategy_params: StrategyParams,
     patterns_params: Arc<Vec<Arc<dyn PatternParams>>>,
 ) -> Vec<Trade> {
     let mut result_vec = Vec::new();
     let mut j = 0;
-
+    let mut last_sent = 0;
     while j < chunk.len() {
         if let Some(wpattern_params) = patterns_params[0].downcast_ref::<WPatternParams>() {
             if let Some(result) = find_w_pattern(&chunk[j..], *wpattern_params) {
@@ -56,18 +58,24 @@ pub fn create_wpattern_trades(
             } else {
                 j += 1;
             }
+            if last_sent + 1000 < j {
+                progression_tracker.send(j as f32/chunk.len() as f32*50.);
+                last_sent = j;
+            }
         }
     }
     result_vec
 }
 
 pub fn create_mpattern_trades(
-    chunk: Vec<MathKLine>,
+    chunk: &Vec<MathKLine>,
+    progression_tracker: &Sender<f32>,
     strategy_params: StrategyParams,
     patterns_params: Arc<Vec<Arc<dyn PatternParams>>>,
 ) -> Vec<Trade> {
     let mut result_vec = Vec::new();
     let mut j = 0;
+    let mut last_sent = 0;
     while j < chunk.len() {
         if let Some(mpattern_params) = patterns_params[0].downcast_ref::<MPatternParams>() {
             if let Some(result) = find_m_pattern(&chunk[j..], *mpattern_params) {
@@ -91,18 +99,24 @@ pub fn create_mpattern_trades(
             } else {
                 j += 1;
             }
+            if last_sent + 1000 < j {
+                progression_tracker.send(j as f32/chunk.len() as f32*50.);
+                last_sent = j;
+            }
         }
     }
     result_vec
 }
 
 pub fn create_bull_reversal_trades(
-    chunk: Vec<MathKLine>,
+    chunk: &Vec<MathKLine>,
+    progression_tracker: &Sender<f32>,
     strategy_params: StrategyParams,
     patterns_params: Arc<Vec<Arc<dyn PatternParams>>>,
 ) -> Vec<Trade> {
     let mut result_vec = Vec::new();
     let mut j = 0;
+    let mut last_sent = 0;
     while j < chunk.len() {
         if let Some(reversal_pattern_params) = patterns_params[0].downcast_ref::<ReversalPatternParams>() {
             if let Some(result) = find_bull_reversal(&chunk[j..], *reversal_pattern_params) {
@@ -127,6 +141,10 @@ pub fn create_bull_reversal_trades(
                     });
             } else {
                 j += 1;
+            }
+            if last_sent + 1000 < j {
+                progression_tracker.send(j as f32/chunk.len() as f32*50.);
+                last_sent = j;
             }
         }
     }

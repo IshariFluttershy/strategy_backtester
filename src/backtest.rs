@@ -6,6 +6,7 @@ use std::time::Instant;
 use std::{thread, io, fmt};
 
 use binance::model::KlineSummary;
+use chrono::Duration;
 use serde::{Serialize, Deserialize};
 use crate::patterns::*;
 use crate::strategies::*;
@@ -15,6 +16,8 @@ pub type Strategy = (StrategyFunc, StrategyParams, Arc<Vec<Arc<dyn PatternParams
 
 const TAXES_SPOT: f64 = 0.000;
 const TAXES_FUTURES: f64 = 0.0002;
+const MAX_LEVERAGE: f64 = 10.;
+
 
 
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
@@ -124,7 +127,7 @@ impl Backtester {
         thread::spawn(move || loop {
             while let Ok(progression) = rx.recv() {
                 let current_num = *current.lock().unwrap();
-                let total_sent = ((progression + (current_num*100.))/(total * 100) as f32) * 100.;
+                let total_sent = ((progression + ((current_num-1.)*100.))/(total * 100) as f32) * 100.;
                 //println!("progression == {} ---- total sent == {} ---- current == {}", progression, total_sent, current_num);
                 progression_tracker_clone.send((total_sent, id));
             }
@@ -149,8 +152,20 @@ impl Backtester {
 
     fn resolve_trades(&mut self, strategy: &mut Strategy, progression_tracker: &Sender<f32>) {
         let mut last_sent = 0;
+        let mut start = 0;
         for (i, kline) in self.klines_data.iter().enumerate() {
-            self.trades.iter_mut().for_each(|trade| {
+            let mut j = start;
+            while j < self.trades.len() {
+                let mut trade = &mut self.trades[j];
+                if let Status::Closed(_) = trade.status {
+                    if j == start + 1 {
+                        start = j;
+                    }
+                    j += 1;
+                    continue;
+                } else if trade.open_time > kline.close_time {
+                    break;
+                }
                 if kline.close_time == trade.open_time && trade.status == Status::NotOpened {
                     trade.status = Status::Running;
                     // taker et maker 0.1% de frais
@@ -162,7 +177,7 @@ impl Backtester {
                         MarketType::Spot => {
                             taxes_rate = TAXES_SPOT;
                             if lots * trade.entry_price > strategy.1.money {
-                                lots = strategy.1.money / trade.entry_price;
+                                lots = (strategy.1.money * MAX_LEVERAGE) / trade.entry_price;
                             }
                         }
                         MarketType::Futures => {
@@ -191,23 +206,23 @@ impl Backtester {
                 }
 
                 if kline.close_time > trade.open_time && trade.status == Status::Running {
-                    if Self::hit_price(trade.sl, kline) && Self::hit_price(trade.tp, kline) {
+                    if kline.low <= trade.sl && kline.high >= trade.tp {
                         trade.status = Status::Closed(TradeResult::Unknown);
-                    } else if Self::hit_price(trade.tp, kline) {
-                        strategy.1.money += trade.benefits;
-                        self.current_strategy_money_evolution.push(strategy.1.money);
-                        trade.status = Status::Closed(TradeResult::Win);
-                    } else if Self::hit_price(trade.sl, kline) {
+                    } else if kline.low <= trade.sl {
+                        trade.status = Status::Closed(TradeResult::Lost);
                         strategy.1.money -= trade.loss;
                         self.current_strategy_money_evolution.push(strategy.1.money);
-                        trade.status = Status::Closed(TradeResult::Lost);
+                    } else if kline.high >= trade.tp {
+                        trade.status = Status::Closed(TradeResult::Win);
+                        strategy.1.money += trade.benefits;
+                        self.current_strategy_money_evolution.push(strategy.1.money);
                     }
                     if strategy.1.money <= 0. {
                         return;
                     }
                 }
-
-            });
+                j += 1;
+            };
             if last_sent + 1000 < i {
                 let to_send = (i as f32/self.klines_data.len() as f32*50.) + 50.;
                 progression_tracker.send(to_send);
@@ -302,9 +317,10 @@ impl Backtester {
         self.results.clone()
     }
 
-    fn hit_price(price: f64, kline: &MathKLine) -> bool {
+    // fonction qui porte très mal son nom
+    /*fn hit_price(price: f64, kline: &MathKLine) -> bool {
         price <= kline.high && price >= kline.low
-    }
+    }*/
 
     fn to_math_kline(kline: &KlineSummary) -> MathKLine{
         MathKLine {

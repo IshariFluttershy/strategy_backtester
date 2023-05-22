@@ -58,7 +58,7 @@ pub fn create_w_and_m_pattern_strategies(
                             Arc::new(pattern_params_w),
                         ));
 
-                        strategies.push((
+                        /*strategies.push((
                             strategies::create_mpattern_trades,
                             StrategyParams {
                                 tp_multiplier: i,
@@ -69,7 +69,7 @@ pub fn create_w_and_m_pattern_strategies(
                                 market_type
                             },
                             Arc::new(pattern_params_m),
-                        ));
+                        )); */
                         m += risk.step;
                     }
                     l += klines_range.step;

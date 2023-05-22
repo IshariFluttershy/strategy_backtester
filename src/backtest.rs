@@ -92,7 +92,7 @@ pub struct StrategyResult{
 }
 
 pub struct Backtester {
-    klines_data: Vec<MathKLine>,
+    klines_data: Arc<Vec<MathKLine>>,
     trades: Vec<Trade>,
     strategies: Vec<Strategy>,
     results: Vec<StrategyResult>,
@@ -102,9 +102,9 @@ pub struct Backtester {
 }
 
 impl Backtester {
-    pub fn new(klines_data: Vec<KlineSummary>, progression_tracker: Sender<(f32, usize)>, id: usize) -> Self {
+    pub fn new(klines_data: Arc<Vec<MathKLine>>, progression_tracker: Sender<(f32, usize)>, id: usize) -> Self {
         Backtester {
-            klines_data: Self::to_all_math_kline(klines_data),
+            klines_data,
             trades: Vec::new(),
             strategies: Vec::new(),
             results: Vec::new(),
@@ -338,7 +338,7 @@ impl Backtester {
         }
     }
 
-    fn to_all_math_kline(klines: Vec<KlineSummary>) -> Vec<MathKLine>{
+    pub fn to_all_math_kline(klines: Vec<KlineSummary>) -> Vec<MathKLine>{
         let mut result: Vec<MathKLine> = Vec::new();
         for kline in klines.iter() {
             result.push(Self::to_math_kline(kline));

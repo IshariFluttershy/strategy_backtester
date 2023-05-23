@@ -14,11 +14,11 @@ use crate::strategies::*;
 pub type StrategyFunc = fn(&Vec<MathKLine>, &Sender<f32>, StrategyParams, Arc<Vec<Arc<dyn PatternParams>>>) -> Vec<Trade>;
 pub type Strategy = (StrategyFunc, StrategyParams, Arc<Vec<Arc<dyn PatternParams>>>);
 
-const TAXES_SPOT: f64 = 0.000;
+const TAXES_SPOT: f64 = 0.001;
 const TAXES_FUTURES: f64 = 0.0002;
 const MAX_LEVERAGE: f64 = 10.;
-
-
+const MAX_BENEFITS: f64 = 100.;
+const MIN_LOSS: f64 = 0.5;
 
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum StrategyName {
@@ -195,7 +195,13 @@ impl Backtester {
                     trade.loss = trade.money * strategy.1.risk_per_trade * strategy.1.sl_multiplier;
 
                     trade.benefits = lots * trade.tp - lots * trade.entry_price;
+                    if trade.benefits > MAX_BENEFITS {
+                        trade.benefits = MAX_BENEFITS;
+                    }
                     trade.loss = lots * trade.entry_price - lots * trade.sl;
+                    if trade.loss < MIN_LOSS {
+                        trade.loss = MIN_LOSS;
+                    }
 
                     //let leverage = (((trade.money + trade.benefits) / trade.money) - 1.) / ((trade.tp / trade.entry_price) - 1.);
                     //println!("leverage == {} for trade {:#?}", leverage, trade);

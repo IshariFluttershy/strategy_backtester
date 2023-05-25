@@ -5,6 +5,7 @@ use crate::patterns::*;
 use crate::strategies;
 use crate::strategies::*;
 
+#[derive(Clone, Copy)]
 pub struct ParamMultiplier<T> {
     pub min: T,
     pub max: T,

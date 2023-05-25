@@ -328,7 +328,7 @@ impl Backtester {
         price <= kline.high && price >= kline.low
     }*/
 
-    fn to_math_kline(kline: &KlineSummary) -> MathKLine{
+    pub fn to_math_kline(kline: &KlineSummary) -> MathKLine{
         MathKLine {
             open_time: kline.open_time,
             open: kline.open.parse::<f64>().unwrap(),

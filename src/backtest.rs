@@ -16,6 +16,7 @@ pub type StrategyFunc = fn(
     Option<&Sender<f32>>,
     StrategyParams,
     Arc<Vec<Arc<dyn PatternParams>>>,
+    bool
 ) -> Vec<Trade>;
 pub type Strategy = (
     StrategyFunc,
@@ -108,6 +109,7 @@ pub struct Backtester {
     current_strategy_money_evolution: Vec<f64>,
     progression_tracker: Option<Sender<(f32, usize)>>,
     id: Option<usize>,
+    only_potential: bool
 }
 
 impl Backtester {
@@ -115,6 +117,7 @@ impl Backtester {
         klines_data: Arc<Vec<MathKLine>>,
         progression_tracker: Option<Sender<(f32, usize)>>,
         id: Option<usize>,
+        only_potential: bool
     ) -> Self {
         Backtester {
             klines_data,
@@ -124,6 +127,7 @@ impl Backtester {
             current_strategy_money_evolution: Vec::new(),
             progression_tracker,
             id,
+            only_potential
         }
     }
 
@@ -137,9 +141,8 @@ impl Backtester {
         let current: Arc<Mutex<f32>> = Arc::new(Mutex::new(1.));
         let current_clone: Arc<Mutex<f32>> = current.clone();
         let option_tx;
-        if let Some(tracker) = progression_tracker_clone {
-            let (tx, rx) = channel::<f32>();
-            option_tx = Some(&tx);
+        let (tx, rx) = channel::<f32>();
+        option_tx = if let Some(tracker) = progression_tracker_clone {
             thread::spawn(move || loop {
                 while let Ok(progression) = rx.recv() {
                     let current_num = *current.lock().unwrap();
@@ -148,9 +151,10 @@ impl Backtester {
                     tracker.send((total_sent, id.unwrap()));
                 }
             });
+            Some(&tx)
         } else {
-            option_tx = None;
-        }
+            None
+        };
 
         for (i, strategy) in self.strategies.clone().iter_mut().enumerate() {
             self.create_trades_from_strategy(strategy.clone(), option_tx);
@@ -161,10 +165,17 @@ impl Backtester {
             let new_current = *current_clone.lock().unwrap() + 1.;
             *current_clone.lock().unwrap() = new_current;
         }
-        if let Some(tracker) = self.progression_tracker {
+        if let Some(tracker) = &self.progression_tracker {
             tracker.send((100., self.id.unwrap()));
         }
         self
+    }
+
+    pub fn start_potential_only(&mut self) -> &Vec<Trade> {
+        for strategy in self.strategies.clone().iter_mut() {
+            self.create_trades_from_strategy(strategy.clone(), None);
+        }
+        &self.trades
     }
 
     fn create_trades_from_strategy(
@@ -177,6 +188,7 @@ impl Backtester {
             progression_tracker,
             strategy.1,
             strategy.2,
+            self.only_potential
         );
     }
 

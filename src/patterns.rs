@@ -187,7 +187,7 @@ pub fn find_potential_w_pattern(vec: &[MathKLine], options: WPatternParams) -> O
         return None;
     }
 
-    Some((WPattern { start_index, start_time, end_index, end_time, lower_price, neckline_price }, second_v_index))
+    Some((WPattern { start_index, start_time, end_index: second_v_index, end_time, lower_price, neckline_price }, second_v_index))
 }
 
 pub fn find_trigger_w_pattern(vec: &[MathKLine], options: WPatternParams, potential_pattern: WPattern, second_v_index: usize) -> Option<WPattern>{
@@ -227,16 +227,16 @@ pub fn find_w_pattern(vec: &[MathKLine], options: WPatternParams, potential_only
     return None;
 }
 
-pub fn find_m_pattern(vec: &[MathKLine], options: MPatternParams) -> Option<MPattern>{
+pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> Option<(MPattern, usize)>{
     let n = options.klines_repetitions;
     let start_index: usize;
     let second_n_index: usize;
-    let end_index: usize;
+    let end_index: usize = 0;
     let neckline_index: usize;
     let higher_price: f64;
     let neckline_price: f64;
     let start_time = vec[0].open_time;
-    let end_time: i64;
+    let end_time: i64 = 0;
 
     let is_down_test = vec![TestFunction{function: is_down, params: None}];
     let is_up_test = vec![TestFunction{function: is_up, params: None}];
@@ -282,20 +282,43 @@ pub fn find_m_pattern(vec: &[MathKLine], options: MPatternParams) -> Option<MPat
     if vec.len() < second_n_index+options.klines_range {
         return None;
     }
+    Some((MPattern { start_index, start_time, end_index: second_n_index, end_time, higher_price, neckline_price }, second_n_index))
+}
 
-    // Find the KLine that breaks the neckline price
+pub fn find_trigger_m_pattern(vec: &[MathKLine], options: MPatternParams, potential_pattern: MPattern, second_n_index: usize) -> Option<MPattern>{
+    let end_index: usize;
+    let end_time: i64;
+
     let neckline_break_test = vec![
-        TestFunction{function: is_breaking_price_downwards, params: Some(TestParams{price: Some(neckline_price)})}
-        ];
+        TestFunction{function: is_breaking_price_downwards, params: Some(TestParams{price: Some(potential_pattern.neckline_price)})}
+    ];
 
-    if let Some(result) = test_multiple_klines(&vec[second_n_index..second_n_index+options.klines_range], n, &neckline_break_test) {
+    if let Some(result) = test_multiple_klines(&vec[second_n_index..second_n_index+options.klines_range], options.klines_repetitions, &neckline_break_test) {
         end_index = result + second_n_index;
         end_time = vec[end_index].close_time;
     } else {
         return None;
     };
 
-    Some(MPattern { start_index, start_time, end_index, end_time, higher_price, neckline_price })
+    Some(MPattern { 
+        start_index: potential_pattern.start_index, 
+        start_time: potential_pattern.start_time, 
+        end_index, 
+        end_time, 
+        higher_price: potential_pattern.higher_price, 
+        neckline_price: potential_pattern.neckline_price
+    })
+}
+
+pub fn find_m_pattern(vec: &[MathKLine], options: MPatternParams, potential_only: bool) -> Option<MPattern>{
+    if let Some((pattern, second_v_index)) = find_potential_m_pattern(vec, options) {
+        if potential_only {
+            return Some(pattern); 
+        } else {
+            return find_trigger_m_pattern(vec, options, pattern, second_v_index); 
+        }
+    }
+    return None;
 }
 
 pub fn find_bull_reversal(vec: &[MathKLine], options: ReversalPatternParams, potential_only: bool) -> Option<ReversalPattern>{

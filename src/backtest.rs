@@ -7,7 +7,7 @@ use std::{fmt, io, thread};
 
 use crate::patterns::*;
 use crate::strategies::*;
-use binance::model::KlineSummary;
+use binance::model::{KlineSummary, Kline};
 use chrono::Duration;
 use serde::{Deserialize, Serialize};
 
@@ -467,7 +467,23 @@ impl Backtester {
         price <= kline.high && price >= kline.low
     }*/
 
-    pub fn to_math_kline(kline: &KlineSummary) -> MathKLine {
+    pub fn kline_summary_to_math_kline(kline: &KlineSummary) -> MathKLine {
+        MathKLine {
+            open_time: kline.open_time,
+            open: kline.open.parse::<f64>().unwrap(),
+            high: kline.high.parse::<f64>().unwrap(),
+            low: kline.low.parse::<f64>().unwrap(),
+            close: kline.close.parse::<f64>().unwrap(),
+            volume: kline.volume.clone(),
+            close_time: kline.close_time,
+            quote_asset_volume: kline.quote_asset_volume.clone(),
+            number_of_trades: kline.number_of_trades,
+            taker_buy_base_asset_volume: kline.taker_buy_base_asset_volume.clone(),
+            taker_buy_quote_asset_volume: kline.taker_buy_quote_asset_volume.clone(),
+        }
+    }
+
+    pub fn kline_to_math_kline(kline: &Kline) -> MathKLine {
         MathKLine {
             open_time: kline.open_time,
             open: kline.open.parse::<f64>().unwrap(),
@@ -486,7 +502,7 @@ impl Backtester {
     pub fn to_all_math_kline(klines: Vec<KlineSummary>) -> Vec<MathKLine> {
         let mut result: Vec<MathKLine> = Vec::new();
         for kline in klines.iter() {
-            result.push(Self::to_math_kline(kline));
+            result.push(Self::kline_summary_to_math_kline(kline));
         }
         result
     }

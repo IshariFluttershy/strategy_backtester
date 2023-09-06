@@ -11,6 +11,6 @@ tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 hmac = "0.12.1"
 serde_json = "1.0"
-binance = { git = "https://github.com/wisespace-io/binance-rs.git" }
+binance = { path = "../binance-rs-with-OCO" }
 downcast-rs = "1.2"
 chrono = "0.4.24"

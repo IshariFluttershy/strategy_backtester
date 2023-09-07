@@ -9,6 +9,7 @@ pub fn retreive_test_data(
     folder: String,
     iterations: usize,
     batch_size: u16,
+    write_in_file: bool
 ) -> Vec<KlineSummary> {
     let mut i: u64 = iterations as u64;
     let start_i = i;
@@ -17,6 +18,16 @@ pub fn retreive_test_data(
     let mut end_time = server_time - ((i - 1) * 60 * 1000 * 1000);
 
     let mut klines = Vec::new();
+    println!("symbol = {}, interval = {}", symbol, interval);
+    if let Err(retreive_klines) = market.get_klines(
+        symbol.clone(),
+        interval.clone(),
+        batch_size,
+        start_time,
+        end_time,) {
+            println!("Error while retreiving klines from binance. Error : {:#?}", retreive_klines);
+        }
+
     while let Ok(retreive_klines) = market.get_klines(
         symbol.clone(),
         interval.clone(),
@@ -39,8 +50,11 @@ pub fn retreive_test_data(
         if i % 10 == 0 {
             println!("Retreived {}/{} bench of klines data", j, start_i);
         }
-    }
+    } 
 
+    if write_in_file {
+        write_data_to_file(&klines, symbol, interval, folder);
+    }
     klines
 }
 

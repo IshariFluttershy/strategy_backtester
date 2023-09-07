@@ -43,17 +43,16 @@ pub fn create_wpattern_trades(
     let mut last_sent = 0;
     while j < chunk.len() {
         if let Some(wpattern_params) = patterns_params[0].downcast_ref::<WPatternParams>() {
-
             if let Some(result) = find_w_pattern(&chunk[j..], *wpattern_params, potential_only) {
                 j += result.end_index;
                 result_vec.push(Trade {
                     entry_price: result.neckline_price,
                     sl: result.lower_price
-                        - (result.neckline_price - result.lower_price)
-                            * (strategy_params.sl_multiplier - 1.),
+                        - ((result.neckline_price - result.lower_price)
+                            * (strategy_params.sl_multiplier - 1.)),
                     tp: result.neckline_price
-                        + (result.neckline_price - result.lower_price)
-                            * strategy_params.tp_multiplier,
+                        + ((result.neckline_price - result.lower_price)
+                            * strategy_params.tp_multiplier),
                     open_time: result.end_time,
                     opening_kline: chunk[j].clone(),
                     money: 0.,

@@ -24,11 +24,11 @@ pub type Strategy = (
     Arc<Vec<Arc<dyn PatternParams>>>,
 );
 
-const TAXES_SPOT: f64 = 0.001;
+const TAXES_SPOT: f64 = 0.000;
 const TAXES_FUTURES: f64 = 0.0002;
-const MAX_LEVERAGE: f64 = 10.;
+const MAX_LEVERAGE: f64 = 1.;
 const MAX_BENEFITS: f64 = 100.;
-const MIN_LOSS: f64 = 0.5;
+const MIN_LOSS: f64 = 0.001;
 
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum StrategyName {
@@ -216,10 +216,15 @@ impl Backtester {
                     trade.status = Status::Running;
                     // taker et maker 0.1% de frais
                     //Nombre de lots = (Capital de départ x % de capital risqué dans le trade x Ratio risque/récompense) / (Prix d'entrée - Prix de stop-loss)
+                    let entry_stop_diff = if trade.sl < trade.tp {
+                        trade.entry_price - trade.sl
+                    } else {
+                        trade.sl - trade.entry_price
+                    };
                     let mut lots = (strategy.1.money
                         * strategy.1.risk_per_trade
                         * (strategy.1.sl_multiplier / strategy.1.tp_multiplier))
-                        / (trade.entry_price - trade.sl);
+                        / entry_stop_diff;
                     let taxes_rate;
 
                     match strategy.1.market_type {
@@ -240,15 +245,20 @@ impl Backtester {
                     trade.lots = lots;
                     trade.taxes = taxes;
 
-                    trade.benefits =
-                        trade.money * strategy.1.risk_per_trade * strategy.1.tp_multiplier;
-                    trade.loss = trade.money * strategy.1.risk_per_trade * strategy.1.sl_multiplier;
+                    //trade.benefits =
+                    //    trade.money * strategy.1.risk_per_trade * strategy.1.tp_multiplier;
+                    //trade.loss = trade.money * strategy.1.risk_per_trade * strategy.1.sl_multiplier;
 
-                    trade.benefits = lots * trade.tp - lots * trade.entry_price;
+                    if trade.sl < trade.tp { //Si c'est un trade long
+                        trade.benefits = lots * trade.tp - lots * trade.entry_price;
+                        trade.loss = lots * trade.entry_price - lots * trade.sl;
+                    } else {//Si c'est un trade short
+                        trade.benefits = lots * trade.entry_price - lots * trade.tp;
+                        trade.loss = lots * trade.sl - lots * trade.entry_price;
+                    }
                     if trade.benefits > MAX_BENEFITS {
                         trade.benefits = MAX_BENEFITS;
                     }
-                    trade.loss = lots * trade.entry_price - lots * trade.sl;
                     if trade.loss < MIN_LOSS {
                         trade.loss = MIN_LOSS;
                     }
@@ -265,16 +275,30 @@ impl Backtester {
                 }
 
                 if kline.close_time > trade.open_time && trade.status == Status::Running {
-                    if kline.low <= trade.sl && kline.high >= trade.tp {
-                        trade.status = Status::Closed(TradeResult::Unknown);
-                    } else if kline.low <= trade.sl {
-                        trade.status = Status::Closed(TradeResult::Lost);
-                        strategy.1.money -= trade.loss;
-                        self.current_strategy_money_evolution.push(strategy.1.money);
-                    } else if kline.high >= trade.tp {
-                        trade.status = Status::Closed(TradeResult::Win);
-                        strategy.1.money += trade.benefits;
-                        self.current_strategy_money_evolution.push(strategy.1.money);
+                    if trade.tp > trade.sl { //Si le trade est Long
+                        if kline.low <= trade.sl && kline.high >= trade.tp {
+                            trade.status = Status::Closed(TradeResult::Unknown);
+                        } else if kline.low <= trade.sl {
+                            trade.status = Status::Closed(TradeResult::Lost);
+                            strategy.1.money -= trade.loss;
+                            self.current_strategy_money_evolution.push(strategy.1.money);
+                        } else if kline.high >= trade.tp {
+                            trade.status = Status::Closed(TradeResult::Win);
+                            strategy.1.money += trade.benefits;
+                            self.current_strategy_money_evolution.push(strategy.1.money);
+                        }
+                    } else if trade.tp < trade.sl { //Si le trade est short
+                        if kline.low <= trade.tp && kline.high >= trade.sl {
+                            trade.status = Status::Closed(TradeResult::Unknown);
+                        } else if kline.high >= trade.sl {
+                            trade.status = Status::Closed(TradeResult::Lost);
+                            strategy.1.money -= trade.loss;
+                            self.current_strategy_money_evolution.push(strategy.1.money);
+                        } else if kline.low <= trade.tp {
+                            trade.status = Status::Closed(TradeResult::Win);
+                            strategy.1.money += trade.benefits;
+                            self.current_strategy_money_evolution.push(strategy.1.money);
+                        }
                     }
                     if strategy.1.money <= 0. {
                         return;

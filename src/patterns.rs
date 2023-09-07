@@ -164,7 +164,6 @@ pub fn find_potential_w_pattern(vec: &[MathKLine], options: WPatternParams) -> O
     // Get neckline KLine
     if let Some(result) = test_multiple_klines(&vec[start_index..start_index+options.klines_range], n, &is_down_test) {
         neckline_index = result + start_index;
-
         neckline_price = vec[neckline_index].high;
     } else {
         return None;
@@ -186,7 +185,6 @@ pub fn find_potential_w_pattern(vec: &[MathKLine], options: WPatternParams) -> O
     if vec.len() < second_v_index+options.klines_range {
         return None;
     }
-
     Some((WPattern { start_index, start_time, end_index: second_v_index, end_time, lower_price, neckline_price }, second_v_index))
 }
 
@@ -200,7 +198,6 @@ pub fn find_trigger_w_pattern(vec: &[MathKLine], options: WPatternParams, potent
 
     if let Some(result) = test_multiple_klines(&vec[second_v_index..second_v_index+options.klines_range], options.klines_repetitions, &neckline_break_test) {
         end_index = result + second_v_index;
-
         end_time = vec[end_index].close_time;
     } else {
         return None;
@@ -228,7 +225,7 @@ pub fn find_w_pattern(vec: &[MathKLine], options: WPatternParams, potential_only
 }
 
 pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> Option<(MPattern, usize)>{
-    let n = options.klines_repetitions;
+    let n: usize = options.klines_repetitions;
     let start_index: usize;
     let second_n_index: usize;
     let end_index: usize = 0;

@@ -21,6 +21,20 @@ pub fn create_w_and_m_pattern_strategies(
     risk: ParamMultiplier<f64>,
     market_type: MarketType
 ) -> Vec<Strategy> {
+    let mut strategies = create_w_pattern_strategies(start_money, tp, sl, klines_repetitions, klines_range, risk, market_type);
+    strategies.append(&mut create_m_pattern_strategies(start_money, tp, sl, klines_repetitions, klines_range, risk, market_type));
+    strategies
+}
+
+pub fn create_w_pattern_strategies(
+    start_money: f64,
+    tp: ParamMultiplier<f64>,
+    sl: ParamMultiplier<f64>,
+    klines_repetitions: ParamMultiplier<usize>,
+    klines_range: ParamMultiplier<usize>,
+    risk: ParamMultiplier<f64>,
+    market_type: MarketType
+) -> Vec<Strategy> {
     let mut strategies: Vec<Strategy> = Vec::new();
     let mut i = tp.min;
     while i <= tp.max {
@@ -39,13 +53,6 @@ pub fn create_w_and_m_pattern_strategies(
                                 name: PatternName::W,
                             })];
 
-                        let pattern_params_m: Vec<Arc<dyn PatternParams>> =
-                            vec![Arc::new(MPatternParams {
-                                klines_repetitions: k,
-                                klines_range: l,
-                                name: PatternName::M,
-                            })];
-
                         strategies.push((
                             strategies::create_wpattern_trades,
                             StrategyParams {
@@ -58,6 +65,47 @@ pub fn create_w_and_m_pattern_strategies(
                             },
                             Arc::new(pattern_params_w),
                         ));
+
+                        m += risk.step;
+                    }
+                    l += klines_range.step;
+                }
+                k += klines_repetitions.step;
+            }
+            j += sl.step;
+        }
+        i += tp.step;
+    }
+
+    strategies
+}
+
+pub fn create_m_pattern_strategies(
+    start_money: f64,
+    tp: ParamMultiplier<f64>,
+    sl: ParamMultiplier<f64>,
+    klines_repetitions: ParamMultiplier<usize>,
+    klines_range: ParamMultiplier<usize>,
+    risk: ParamMultiplier<f64>,
+    market_type: MarketType
+) -> Vec<Strategy> {
+    let mut strategies: Vec<Strategy> = Vec::new();
+    let mut i = tp.min;
+    while i <= tp.max {
+        let mut j = sl.min;
+        while j <= sl.max {
+            let mut k = klines_repetitions.min;
+            while k <= klines_repetitions.max {
+                let mut l = klines_range.min;
+                while l <= klines_range.max {
+                    let mut m = risk.min;
+                    while m <= risk.max {
+                        let pattern_params_m: Vec<Arc<dyn PatternParams>> =
+                            vec![Arc::new(MPatternParams {
+                                klines_repetitions: k,
+                                klines_range: l,
+                                name: PatternName::M,
+                            })];
 
                         strategies.push((
                             strategies::create_mpattern_trades,

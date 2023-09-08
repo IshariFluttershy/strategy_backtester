@@ -93,6 +93,7 @@ pub fn create_mpattern_trades(
         if let Some(mpattern_params) = patterns_params[0].downcast_ref::<MPatternParams>() {
             if let Some(result) = find_m_pattern(&chunk[j..], *mpattern_params, potential_only) {
                     j += result.end_index;
+                    println!("trade {} open time == {}, result = {:#?}", j, result.end_time, result);
                     result_vec.push(Trade {
                     entry_price: result.neckline_price,
                     sl: result.higher_price

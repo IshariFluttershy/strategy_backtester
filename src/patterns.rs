@@ -235,7 +235,6 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
     let start_time = vec[0].open_time;
     let end_time: i64 = 0;
 
-    let is_down_test = vec![TestFunction{function: is_down, params: None}];
     let is_up_test = vec![TestFunction{function: is_up, params: None}];
 
 
@@ -245,7 +244,11 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
     }
 
     // Get start of new downward trend
-    if let Some(result) = test_multiple_klines(&vec[n..n+options.klines_range], n, &is_down_test) {
+    let first_n_test = vec![
+        TestFunction{function: is_down, params: None},
+        TestFunction{function: is_not_breaking_price_upwards, params: Some(TestParams{price: Some(vec[n].high)})}
+        ];
+    if let Some(result) = test_multiple_klines(&vec[n..n+options.klines_range], n, &first_n_test) {
         start_index = result + n;
         higher_price = vec[start_index].high;
     } else {
@@ -256,7 +259,12 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
     }
 
     // Get neckline KLine
-    if let Some(result) = test_multiple_klines(&vec[start_index..start_index+options.klines_range], n, &is_up_test) {
+    let get_kline_test = vec![
+        TestFunction{function: is_up, params: None},
+        TestFunction{function: is_not_breaking_price_upwards, params: Some(TestParams{price: Some(higher_price)})},
+        TestFunction{function: is_not_breaking_price_downwards, params: Some(TestParams{price: Some(vec[start_index].low)})}
+        ];
+    if let Some(result) = test_multiple_klines(&vec[start_index..start_index+options.klines_range], n, &get_kline_test) {
         neckline_index = result + start_index;
         neckline_price = vec[neckline_index].low;
     } else {
@@ -269,7 +277,7 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
     // Find the continuation on downward trend + check if higher price breaks
     let second_n_test = vec![
         TestFunction{function: is_down, params: None},
-        TestFunction{function: is_not_breaking_price_upwards, params: Some(TestParams{price: Some(higher_price)})}
+        TestFunction{function: is_not_breaking_price_upwards, params: Some(TestParams{price: Some(vec[neckline_index].high)})}
         ];
     if let Some(result) = test_multiple_klines(&vec[neckline_index..neckline_index+options.klines_range], n, &second_n_test) {
         second_n_index = result + neckline_index;
@@ -279,6 +287,8 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
     if vec.len() < second_n_index+options.klines_range {
         return None;
     }
+
+    /// ICI TODO FAIRE UN PRINT DE TOUTES LES VARIABLES INTERMEDIRAIRES POUR VERIFIER QUE CA PREND PAS N'IMP (et jsuis a peu près sur que ca prend n'imp)
     Some((MPattern { start_index, start_time, end_index: second_n_index, end_time, higher_price, neckline_price }, second_n_index))
 }
 

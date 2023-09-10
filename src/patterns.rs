@@ -276,12 +276,12 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
     //vec[0];
     //uptrend_end
     //vec[uptrend_end];
-    println!("\n\nETAPE 1\n");
-    println!("n : {}", n);
-    println!("vec[0] : {:#?}", vec[0]);
-    println!("uptrend_end : {}", uptrend_end);
-    println!("vec[uptrend_end] : {:#?}", vec[uptrend_end]);
-    println!("---------------------------------------------");
+    //println!("\n\nETAPE 1\n");
+    //println!("n : {}", n);
+    //println!("vec[0] : {:#?}", vec[0]);
+    //println!("uptrend_end : {}", uptrend_end);
+    //println!("vec[uptrend_end] : {:#?}", vec[uptrend_end]);
+    //println!("---------------------------------------------");
 
 
 
@@ -291,14 +291,14 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
     //vec[uptrend_end].high
     //start_index
     //higher_price
-    println!("\n\nETAPE 2\n");
-    println!("n : {}", n);
-    println!("vec[uptrend_end].high : {:#?}", vec[uptrend_end].high);
-    println!("start_index : {}", start_index);
-    println!("higher_price : {:#?}", higher_price);
-    println!("vec[start_index] : {:#?}", vec[start_index]);
-    println!("neckline_price : {:#?}", neckline_price);
-    println!("---------------------------------------------");
+    //println!("\n\nETAPE 2\n");
+    //println!("n : {}", n);
+    //println!("vec[uptrend_end].high : {:#?}", vec[uptrend_end].high);
+    //println!("start_index : {}", start_index);
+    //println!("higher_price : {:#?}", higher_price);
+    //println!("vec[start_index] : {:#?}", vec[start_index]);
+    //println!("neckline_price : {:#?}", neckline_price);
+    //println!("---------------------------------------------");
     //println!("3");
 
     // Get neckline KLine
@@ -335,15 +335,15 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
     //neckline_index
     //vec[neckline_index]
     //neckline_price
-    println!("\n\nETAPE 3\n");
-    println!("n : {}", n);
-    println!("higher_price : {:#?}", higher_price);
-    println!("start_index : {}", start_index);
-    println!("vec[start_index].low : {:#?}", vec[start_index].low);
-    println!("neckline_index : {:#?}", neckline_index);
-    println!("vec[neckline_index] : {:#?}", vec[neckline_index]);
-    println!("neckline_price : {:#?}", neckline_price);
-    println!("---------------------------------------------");
+    //println!("\n\nETAPE 3\n");
+    //println!("n : {}", n);
+    //println!("higher_price : {:#?}", higher_price);
+    //println!("start_index : {}", start_index);
+    //println!("vec[start_index].low : {:#?}", vec[start_index].low);
+    //println!("neckline_index : {:#?}", neckline_index);
+    //println!("vec[neckline_index] : {:#?}", vec[neckline_index]);
+    //println!("neckline_price : {:#?}", neckline_price);
+    //println!("---------------------------------------------");
 
     //println!("4");
 
@@ -366,13 +366,13 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
     //neckline_index
     //vec[neckline_index].high
     //second_n_index
-    println!("\n\nETAPE 4\n");
-    println!("n : {}", n);
-    println!("neckline_index : {:#?}", neckline_index);
-    println!("vec[neckline_index] : {:#?}", vec[neckline_index]);
-    println!("vec[neckline_index].high : {:#?}", vec[neckline_index].high);
-    println!("second_n_index : {:#?}", second_n_index);
-    println!("---------------------------------------------");
+    //println!("\n\nETAPE 4\n");
+    //println!("n : {}", n);
+    //println!("neckline_index : {:#?}", neckline_index);
+    //println!("vec[neckline_index] : {:#?}", vec[neckline_index]);
+    //println!("vec[neckline_index].high : {:#?}", vec[neckline_index].high);
+    //println!("second_n_index : {:#?}", second_n_index);
+    //println!("---------------------------------------------");
 
 
     /// ICI TODO FAIRE UN PRINT DE TOUTES LES VARIABLES INTERMEDIRAIRES POUR VERIFIER QUE CA PREND PAS N'IMP (et jsuis a peu près sur que ca prend n'imp)
@@ -488,9 +488,9 @@ fn find_kline(vec: &[MathKLine], tests: &[TestFunction], failing_conditions: &[T
 
     for (i, item) in vec.iter().enumerate() {
         for constraint in failing_conditions {
-            println!("ca va test la failing condition");
+            //println!("ca va test la failing condition");
             if (constraint.function)(item.clone(), constraint.params.clone()) {
-                println!("ca fail avec constraint.params.price = {}", constraint.params.clone().unwrap().price.unwrap());
+                //println!("ca fail avec constraint.params.price = {}", constraint.params.clone().unwrap().price.unwrap());
                 return None;
             }
         }
@@ -504,7 +504,7 @@ fn find_kline(vec: &[MathKLine], tests: &[TestFunction], failing_conditions: &[T
                         best_kline_index = i;
                     }
                 }
-                println!("ca passe avec constraint.params.price = {} pour la kline {:#?}", constraint.params.clone().unwrap().price.unwrap(), vec[best_kline_index]);
+                //println!("ca passe avec constraint.params.price = {} pour la kline {:#?}", constraint.params.clone().unwrap().price.unwrap(), vec[best_kline_index]);
                 return Some(best_kline_index);
             }
         }
@@ -529,7 +529,7 @@ fn is_down(kline: MathKLine, _: Option<TestParams>) -> bool {
 }
 
 fn is_breaking_price_upwards(kline: MathKLine, params: Option<TestParams>) -> bool {
-    println!("kline.high : {},  params.price : {}", kline.high, params.clone().unwrap().price.unwrap());
+    //println!("kline.high : {},  params.price : {}", kline.high, params.clone().unwrap().price.unwrap());
     kline.high > params.unwrap().price.unwrap()
 }
 

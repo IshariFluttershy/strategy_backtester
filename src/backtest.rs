@@ -27,8 +27,10 @@ pub type Strategy = (
 const TAXES_SPOT: f64 = 0.000;
 const TAXES_FUTURES: f64 = 0.0002;
 const MAX_LEVERAGE: f64 = 1.;
-const MAX_BENEFITS: f64 = 100.;
+const MAX_BENEFITS: f64 = 1000.;
 const MIN_LOSS: f64 = 0.001;
+const MAX_LOT_PRICE: f64 = 1000.;
+const MIN_LOT_PRICE: f64 = 10.;
 
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum StrategyName {
@@ -221,18 +223,24 @@ impl Backtester {
                     } else {
                         trade.sl - trade.entry_price
                     };
-                    let mut lots = (strategy.1.money
-                        * strategy.1.risk_per_trade
-                        * (strategy.1.sl_multiplier / strategy.1.tp_multiplier))
-                        / entry_stop_diff;
+                    let mut lots = (strategy.1.money / trade.entry_price);
+                    if lots * trade.entry_price > MAX_LOT_PRICE {
+                        lots = MAX_LOT_PRICE / trade.entry_price;
+                    } else if lots * trade.entry_price < MIN_LOT_PRICE {
+                        lots = MIN_LOT_PRICE / trade.entry_price;
+                    }
+                        //* strategy.1.risk_per_trade
+                        //* (strategy.1.sl_multiplier / strategy.1.tp_multiplier))
+                        // / entry_stop_diff;
                     let taxes_rate;
+                    //println!("lots = {}", lots);
 
                     match strategy.1.market_type {
                         MarketType::Spot => {
                             taxes_rate = TAXES_SPOT;
-                            if lots * trade.entry_price > strategy.1.money {
-                                lots = (strategy.1.money * MAX_LEVERAGE) / trade.entry_price;
-                            }
+                            //if lots * trade.entry_price > strategy.1.money {
+                            //    lots = (strategy.1.money * MAX_LEVERAGE) / trade.entry_price;
+                            //}
                         }
                         MarketType::Futures => {
                             taxes_rate = TAXES_FUTURES;
@@ -256,12 +264,12 @@ impl Backtester {
                         trade.benefits = lots * trade.entry_price - lots * trade.tp;
                         trade.loss = lots * trade.sl - lots * trade.entry_price;
                     }
-                    if trade.benefits > MAX_BENEFITS {
-                        trade.benefits = MAX_BENEFITS;
-                    }
-                    if trade.loss < MIN_LOSS {
-                        trade.loss = MIN_LOSS;
-                    }
+                    //if trade.benefits > MAX_BENEFITS {
+                    //    trade.benefits = MAX_BENEFITS;
+                    //}
+                    //if trade.loss < MIN_LOSS {
+                    //    trade.loss = MIN_LOSS;
+                    //}
 
                     //let leverage = (((trade.money + trade.benefits) / trade.money) - 1.) / ((trade.tp / trade.entry_price) - 1.);
                     //println!("leverage == {} for trade {:#?}", leverage, trade);

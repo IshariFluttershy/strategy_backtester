@@ -271,34 +271,7 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
         return None;
     }
 
-            // etape 1
-    //n
-    //vec[0];
-    //uptrend_end
-    //vec[uptrend_end];
-    //println!("\n\nETAPE 1\n");
-    //println!("n : {}", n);
-    //println!("vec[0] : {:#?}", vec[0]);
-    //println!("uptrend_end : {}", uptrend_end);
-    //println!("vec[uptrend_end] : {:#?}", vec[uptrend_end]);
-    //println!("---------------------------------------------");
 
-
-
-
-    // etape 2
-    //n
-    //vec[uptrend_end].high
-    //start_index
-    //higher_price
-    //println!("\n\nETAPE 2\n");
-    //println!("n : {}", n);
-    //println!("vec[uptrend_end].high : {:#?}", vec[uptrend_end].high);
-    //println!("start_index : {}", start_index);
-    //println!("higher_price : {:#?}", higher_price);
-    //println!("vec[start_index] : {:#?}", vec[start_index]);
-    //println!("neckline_price : {:#?}", neckline_price);
-    //println!("---------------------------------------------");
     //println!("3");
 
     // Get neckline KLine
@@ -327,23 +300,7 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
 
 
 
-    //etape 3
-    //n
-    //higher_price
-    //start_index
-    //vec[start_index].low
-    //neckline_index
-    //vec[neckline_index]
-    //neckline_price
-    //println!("\n\nETAPE 3\n");
-    //println!("n : {}", n);
-    //println!("higher_price : {:#?}", higher_price);
-    //println!("start_index : {}", start_index);
-    //println!("vec[start_index].low : {:#?}", vec[start_index].low);
-    //println!("neckline_index : {:#?}", neckline_index);
-    //println!("vec[neckline_index] : {:#?}", vec[neckline_index]);
-    //println!("neckline_price : {:#?}", neckline_price);
-    //println!("---------------------------------------------");
+
 
     //println!("4");
 
@@ -359,13 +316,33 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
 
     //println!("5");
 
-
-
-    //etape 4
-    //n
-    //neckline_index
-    //vec[neckline_index].high
-    //second_n_index
+    //// etape 1
+    //println!("\n\nETAPE 1\n");
+    //println!("n : {}", n);
+    //println!("vec[0] : {:#?}", vec[0]);
+    //println!("uptrend_end : {}", uptrend_end);
+    //println!("vec[uptrend_end] : {:#?}", vec[uptrend_end]);
+    //println!("---------------------------------------------");
+    //// etape 2
+    //println!("\n\nETAPE 2\n");
+    //println!("n : {}", n);
+    //println!("vec[uptrend_end].high : {:#?}", vec[uptrend_end].high);
+    //println!("start_index : {}", start_index);
+    //println!("higher_price : {:#?}", higher_price);
+    //println!("vec[start_index] : {:#?}", vec[start_index]);
+    //println!("neckline_price : {:#?}", neckline_price);
+    //println!("---------------------------------------------");
+    ////etape 3
+    //println!("\n\nETAPE 3\n");
+    //println!("n : {}", n);
+    //println!("higher_price : {:#?}", higher_price);
+    //println!("start_index : {}", start_index);
+    //println!("vec[start_index].low : {:#?}", vec[start_index].low);
+    //println!("neckline_index : {:#?}", neckline_index);
+    //println!("vec[neckline_index] : {:#?}", vec[neckline_index]);
+    //println!("neckline_price : {:#?}", neckline_price);
+    //println!("---------------------------------------------");
+    ////etape 4
     //println!("\n\nETAPE 4\n");
     //println!("n : {}", n);
     //println!("neckline_index : {:#?}", neckline_index);
@@ -403,6 +380,13 @@ pub fn find_trigger_m_pattern(vec: &[MathKLine], options: MPatternParams, potent
         return None;
     };
 
+    //println!("confirmed M pattern : \n start_index : {}\nstart_time : {}\nend_index : {}\nend_time : {}\nhigher_price : {}\nneckline_price : {}", 
+    //potential_pattern.start_index,
+    //potential_pattern.start_time,
+    //end_index,
+    //end_time,
+    //potential_pattern.higher_price,
+    //potential_pattern.neckline_price);
     Some(MPattern { 
         start_index: potential_pattern.start_index, 
         start_time: potential_pattern.start_time, 

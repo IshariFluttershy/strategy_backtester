@@ -145,27 +145,43 @@ pub fn find_potential_w_pattern(vec: &[MathKLine], options: WPatternParams) -> O
     let is_down_test = vec![TestFunction{function: is_down, params: None}];
     let is_up_test = vec![TestFunction{function: is_up, params: None}];
 
-
     // Not enough KLines or downward trend
-    if vec.len() < n+options.klines_range || test_multiple_klines(vec, n, &is_down_test).is_none() {
+    if vec.len() < n+options.klines_range || test_multiple_klines(&vec[0..n], n, &is_down_test).is_none() {
         return None;
     }
     
     // Get start of new upward trend
-    if let Some(result) = test_multiple_klines(&vec[n..n+options.klines_range], n, &is_up_test) {
-        start_index = result + n;
-        lower_price = vec[start_index].low;
+    let downtrend_end = n-1;
+    let first_v_test = vec![
+        TestFunction{function: is_up, params: None},
+        TestFunction{function: is_not_breaking_price_downwards, params: Some(TestParams{price: Some(vec[downtrend_end].low), kline: None})}
+        ];
+        
+    if let Some(result) = test_multiple_klines(&vec[n..n+n], n, &first_v_test) {
+        start_index = n + n - 1;
+        lower_price = vec[downtrend_end].low;
+        neckline_price = vec[start_index].high;
     } else {
         return None;
     };
     if vec.len() < start_index+options.klines_range {
         return None;
     }
-
-    // Get neckline KLine
-    if let Some(result) = test_multiple_klines(&vec[start_index..start_index+options.klines_range], n, &is_down_test) {
-        neckline_index = result + start_index;
-        neckline_price = vec[neckline_index].high;
+    
+    let find_lower_kline_test = vec![
+        TestFunction{function: is_lower_than, params: Some(TestParams{price: Some(neckline_price), kline: None})}
+        ];
+    let find_lower_kline_failing_condition = vec![
+        TestFunction{function: is_breaking_price_downwards, params: Some(TestParams{price: Some(lower_price), kline: None})},
+        ];
+    let find_lower_kline_fast_condition = vec![
+        TestFunction{function: is_breaking_price_upwards, params: Some(TestParams{price: Some(neckline_price), kline: None})}
+        ];
+    if let Some(result) = find_kline(&vec[start_index..options.klines_range], 
+        &find_lower_kline_test,
+        &find_lower_kline_failing_condition,
+        &find_lower_kline_fast_condition) {
+            neckline_index = result + start_index;
     } else {
         return None;
     };
@@ -174,12 +190,8 @@ pub fn find_potential_w_pattern(vec: &[MathKLine], options: WPatternParams) -> O
     }
 
     // Find the continuation on upward trend + check if lower price breaks
-    let second_v_test = vec![
-        TestFunction{function: is_up, params: None},
-        TestFunction{function: is_not_breaking_price_downwards, params: Some(TestParams{price: Some(lower_price), kline: None})}
-        ];
-    if let Some(result) = test_multiple_klines(&vec[neckline_index..neckline_index+options.klines_range], n, &second_v_test) {
-        second_v_index = result + neckline_index;
+    if test_multiple_klines(&vec[neckline_index+1..neckline_index+1], 1, &is_up_test).is_none() {
+        second_v_index = neckline_index + 1;
     } else {
         return None;
     };
@@ -193,13 +205,20 @@ pub fn find_trigger_w_pattern(vec: &[MathKLine], options: WPatternParams, potent
     let end_index: usize;
     let end_time: i64;
 
-    let neckline_break_test = vec![
+    let find_lower_kline_test = vec![
+        ];
+    let find_lower_kline_failing_condition = vec![
+        TestFunction{function: is_breaking_price_downwards, params: Some(TestParams{price: Some(potential_pattern.lower_price), kline: None})},
+        ];
+    let find_lower_kline_fast_condition = vec![
         TestFunction{function: is_breaking_price_upwards, params: Some(TestParams{price: Some(potential_pattern.neckline_price), kline: None})}
         ];
-
-    if let Some(result) = test_multiple_klines(&vec[second_v_index..second_v_index+options.klines_range], options.klines_repetitions, &neckline_break_test) {
-        end_index = result + second_v_index;
-        end_time = vec[end_index].close_time;
+    if let Some(result) = find_kline(&vec[potential_pattern.start_index..options.klines_range], 
+        &find_lower_kline_test,
+        &find_lower_kline_failing_condition,
+        &find_lower_kline_fast_condition) {
+            end_index = result + second_v_index;
+            end_time = vec[end_index].close_time;
     } else {
         return None;
     };
@@ -239,44 +258,29 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
     let is_down_test = vec![TestFunction{function: is_down, params: None}];
     let is_up_test = vec![TestFunction{function: is_up, params: None}];
 
-    //println!("1");
     // Not enough KLines or upward trend
     if vec.len() < n+options.klines_range || test_multiple_klines(&vec[0..n], n, &is_up_test).is_none() {
         return None;
     }
-
-    //println!("2");
     
-    let uptrend_end = n-1;
-    //println!("vec size = {}, uptrend_end = {}", vec.len(), uptrend_end);
     // Get start of new downward trend
+    let uptrend_end = n-1;
     let first_n_test = vec![
         TestFunction{function: is_down, params: None},
         TestFunction{function: is_not_breaking_price_upwards, params: Some(TestParams{price: Some(vec[uptrend_end].high), kline: None})}
         ];
-        
-    //println!("2.1");
     if let Some(result) = test_multiple_klines(&vec[n..n+n], n, &first_n_test) {
-        //println!("2.1.1");
         start_index = n + n - 1;
-        //println!("2.1.2");
         higher_price = vec[uptrend_end].high;
         neckline_price = vec[start_index].low;
-        //println!("2.1.3");
     } else {
         return None;
     };
-    //println!("2.2");
     if vec.len() < start_index+options.klines_range {
         return None;
     }
 
-
-    //println!("3");
-
-    // Get neckline KLine
     // faut trouver la kline avec le prix le plus haut sans que ca dépasse le prix de la neckline ni du stop loss
-
     let find_higher_kline_test = vec![
         TestFunction{function: is_higher_than, params: Some(TestParams{price: Some(neckline_price), kline: None})}
         ];
@@ -298,13 +302,7 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
         return None;
     }
 
-
-
-
-
-    //println!("4");
-
-    // Find the continuation on downward trend + check if higher price breaks
+    // Check if the next kline is downward
     if test_multiple_klines(&vec[neckline_index+1..neckline_index+1], 1, &is_down_test).is_none() {
         second_n_index = neckline_index + 1;
     } else {
@@ -313,47 +311,6 @@ pub fn find_potential_m_pattern(vec: &[MathKLine], options: MPatternParams) -> O
     if vec.len() < second_n_index+options.klines_range {
         return None;
     }
-
-    //println!("5");
-
-    //// etape 1
-    //println!("\n\nETAPE 1\n");
-    //println!("n : {}", n);
-    //println!("vec[0] : {:#?}", vec[0]);
-    //println!("uptrend_end : {}", uptrend_end);
-    //println!("vec[uptrend_end] : {:#?}", vec[uptrend_end]);
-    //println!("---------------------------------------------");
-    //// etape 2
-    //println!("\n\nETAPE 2\n");
-    //println!("n : {}", n);
-    //println!("vec[uptrend_end].high : {:#?}", vec[uptrend_end].high);
-    //println!("start_index : {}", start_index);
-    //println!("higher_price : {:#?}", higher_price);
-    //println!("vec[start_index] : {:#?}", vec[start_index]);
-    //println!("neckline_price : {:#?}", neckline_price);
-    //println!("---------------------------------------------");
-    ////etape 3
-    //println!("\n\nETAPE 3\n");
-    //println!("n : {}", n);
-    //println!("higher_price : {:#?}", higher_price);
-    //println!("start_index : {}", start_index);
-    //println!("vec[start_index].low : {:#?}", vec[start_index].low);
-    //println!("neckline_index : {:#?}", neckline_index);
-    //println!("vec[neckline_index] : {:#?}", vec[neckline_index]);
-    //println!("neckline_price : {:#?}", neckline_price);
-    //println!("---------------------------------------------");
-    ////etape 4
-    //println!("\n\nETAPE 4\n");
-    //println!("n : {}", n);
-    //println!("neckline_index : {:#?}", neckline_index);
-    //println!("vec[neckline_index] : {:#?}", vec[neckline_index]);
-    //println!("vec[neckline_index].high : {:#?}", vec[neckline_index].high);
-    //println!("second_n_index : {:#?}", second_n_index);
-    //println!("---------------------------------------------");
-
-
-    /// ICI TODO FAIRE UN PRINT DE TOUTES LES VARIABLES INTERMEDIRAIRES POUR VERIFIER QUE CA PREND PAS N'IMP (et jsuis a peu près sur que ca prend n'imp)
-    //println!("potential m pattern : \n uptrend_end : {},\n start_index : {},\n higher_price : {},\n neckline_index : {},\n neckline_price : {},\n second_n_index : {}", uptrend_end, start_index, higher_price, neckline_index, neckline_price, second_n_index);
 
     Some((MPattern { start_index, start_time, end_index: second_n_index, end_time, higher_price, neckline_price }, second_n_index))
 }
@@ -380,13 +337,6 @@ pub fn find_trigger_m_pattern(vec: &[MathKLine], options: MPatternParams, potent
         return None;
     };
 
-    //println!("confirmed M pattern : \n start_index : {}\nstart_time : {}\nend_index : {}\nend_time : {}\nhigher_price : {}\nneckline_price : {}", 
-    //potential_pattern.start_index,
-    //potential_pattern.start_time,
-    //end_index,
-    //end_time,
-    //potential_pattern.higher_price,
-    //potential_pattern.neckline_price);
     Some(MPattern { 
         start_index: potential_pattern.start_index, 
         start_time: potential_pattern.start_time, 
@@ -448,10 +398,8 @@ fn test_multiple_klines(vec: &[MathKLine], repetitions: usize, tests: &[TestFunc
         for test in tests {
             if (test.function)(item.clone(), test.params.clone()) {
                 tests_passed += 1;
-                //println!("tests.len = {}, success_count = {}", tests.len(), tests_passed);
                 if tests_passed >= tests.len() {
                     klines_ok += 1;
-                    //println!("klines_ok = {}", klines_ok);
                 }
             } else {
                 klines_ok = 0;
@@ -459,7 +407,6 @@ fn test_multiple_klines(vec: &[MathKLine], repetitions: usize, tests: &[TestFunc
             }
         }
         if klines_ok >= repetitions {
-            //println!("i = {}, klines_ok = {}", i, klines_ok);
             return Some(i-(klines_ok-1));
         }
     }
@@ -472,9 +419,7 @@ fn find_kline(vec: &[MathKLine], tests: &[TestFunction], failing_conditions: &[T
 
     for (i, item) in vec.iter().enumerate() {
         for constraint in failing_conditions {
-            //println!("ca va test la failing condition");
             if (constraint.function)(item.clone(), constraint.params.clone()) {
-                //println!("ca fail avec constraint.params.price = {}", constraint.params.clone().unwrap().price.unwrap());
                 return None;
             }
         }
@@ -488,7 +433,6 @@ fn find_kline(vec: &[MathKLine], tests: &[TestFunction], failing_conditions: &[T
                         best_kline_index = i;
                     }
                 }
-                //println!("ca passe avec constraint.params.price = {} pour la kline {:#?}", constraint.params.clone().unwrap().price.unwrap(), vec[best_kline_index]);
                 return Some(best_kline_index);
             }
         }
@@ -513,7 +457,6 @@ fn is_down(kline: MathKLine, _: Option<TestParams>) -> bool {
 }
 
 fn is_breaking_price_upwards(kline: MathKLine, params: Option<TestParams>) -> bool {
-    //println!("kline.high : {},  params.price : {}", kline.high, params.clone().unwrap().price.unwrap());
     kline.high > params.unwrap().price.unwrap()
 }
 
